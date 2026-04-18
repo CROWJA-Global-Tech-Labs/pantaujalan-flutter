@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Local config
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keys
+*.jks
+*.keystore
+keystore.properties
+gradle.properties
+
+# Generated encrypted feeds blob (published to pantaujalan-docs repo)
+tools/default_feeds.enc

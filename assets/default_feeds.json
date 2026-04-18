@@ -1,0 +1,1287 @@
+{
+  "_comment": "Starter feeds shipped with PantauJalan. URLs point to publicly published CCTV portals operated by Indonesian regional traffic agencies. PantauJalan never bypasses authentication or accesses private cameras.",
+  "_extraction_doc": "COLLECTION feeds drive the generic ConfigProvider via 'extraction'. Schema: stages[].{url,method,body,headers,saveAs,extract{type,pattern,fields,flags,flatten,flattenAs}} -> rules[].{when,drop|override} -> leaf{id,url,name,group,subtitle}. Template syntax {{field}} (prefix with saveAs_ or flattenAs_ where applicable). See ConfigProvider.java. If a portal changes its API, update this file only — no app release needed.",
+  "feeds": [
+    {
+      "id": "d_yog_atcs",
+      "name": "Jogja Traffic",
+      "city": "Yogyakarta",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://cctv.jogjakota.go.id/home/getdata",
+      "sourceUrl": "https://cctv.jogjakota.go.id/",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://cctv.jogjakota.go.id/home/getdata",
+            "method": "GET",
+            "headers": {
+              "X-Requested-With": "XMLHttpRequest",
+              "Referer": "https://cctv.jogjakota.go.id/",
+              "Accept": "application/json, text/javascript, */*; q=0.01"
+            },
+            "extract": {
+              "type": "jsonArray"
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "cctv_status": "1"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "cctv_status": "2"
+            },
+            "override": {
+              "group": "Maintenance",
+              "subtitle": "MAINTENANCE"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "jogja_{{cctv_id}}",
+          "url": "{{cctv_link}}",
+          "name": "{{cctv_title}}",
+          "group": "{{kecamatan_nama}}",
+          "subtitle": "{{kelurahan_nama}}, {{kecamatan_nama}}",
+          "lat": "{{cctv_latitude}}",
+          "lng": "{{cctv_longitude}}"
+        }
+      }
+    },
+    {
+      "id": "d_smg_atcs",
+      "name": "Pantau Semar",
+      "city": "Semarang",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://pantausemar.semarangkota.go.id/",
+      "sourceUrl": "https://pantausemar.semarangkota.go.id/",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://pantausemar.semarangkota.go.id/",
+            "headers": {
+              "User-Agent": "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            },
+            "extract": {
+              "type": "jsVarJsonArray",
+              "pattern": "var\\s+cctvs\\s*=\\s*(\\[.*?\\])\\s*;",
+              "flags": "DOTALL",
+              "flatten": "links",
+              "flattenAs": "link"
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "link_status!": "1"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "smg_{{link_id}}",
+          "url": "{{link_url}}",
+          "name": "{{link_name}}",
+          "group": "{{link_owner_name}}",
+          "subtitle": "{{owner_name}}",
+          "lat": "{{lat}}",
+          "lng": "{{lng}}"
+        }
+      }
+    },
+    {
+      "id": "d_tsm_atcs",
+      "name": "Tasikmalaya ATCS",
+      "city": "Tasikmalaya",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://atcs.tasikmalayakota.go.id/",
+      "sourceUrl": "https://atcs.tasikmalayakota.go.id/",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://atcs.tasikmalayakota.go.id/",
+            "extract": {
+              "type": "jsVarJsonObject",
+              "pattern": "var\\s+cctv\\s*=\\s*(\\{.*?\\})\\s*;",
+              "flags": "DOTALL"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "tsm_{{id}}",
+          "url": "{{link}}",
+          "name": "{{nama}}",
+          "group": "{{jalan_status}}",
+          "subtitle": "{{jenis}} · {{jalan_status}}",
+          "lat": "{{lokasi_lat}}",
+          "lng": "{{lokasi_lng}}"
+        }
+      }
+    },
+    {
+      "id": "d_bdg_atcs",
+      "name": "ATCS Bandung",
+      "city": "Bandung",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://atcs-dishub.bandung.go.id/",
+      "sourceUrl": "https://atcs-dishub.bandung.go.id/",
+      "extraction": {
+        "fanout": 12,
+        "stages": [
+          {
+            "url": "https://atcs-dishub.bandung.go.id/",
+            "saveAs": "ruas",
+            "extract": {
+              "type": "regex",
+              "pattern": "showListCamera\\((\\d+)\\)\"[^>]*>\\s*(?:<img[^>]*/?>)?\\s*([^<]+?)\\s*</a>",
+              "fields": [
+                "id",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://atcs-dishub.bandung.go.id/ajax/cctv-list",
+            "method": "POST",
+            "body": "id={{ruas_id}}",
+            "headers": {
+              "X-Requested-With": "XMLHttpRequest",
+              "Referer": "https://atcs-dishub.bandung.go.id/"
+            },
+            "saveAs": "cam",
+            "extract": {
+              "type": "regex",
+              "pattern": "showStreamingModal\\((\\d+)\\)[^>]*>.*?<p[^>]*>\\s*(?:<img[^>]*/?>)?\\s*([^<]+?)\\s*</p>",
+              "fields": [
+                "id",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://atcs-dishub.bandung.go.id/ajax/cctv-info",
+            "method": "POST",
+            "body": "id={{cam_id}}",
+            "headers": {
+              "X-Requested-With": "XMLHttpRequest",
+              "Referer": "https://atcs-dishub.bandung.go.id/"
+            },
+            "saveAs": "info",
+            "extract": {
+              "type": "json"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "bdg_{{cam_id}}",
+          "url": "{{info_src}}",
+          "name": "{{cam_name}}",
+          "group": "{{ruas_name}}",
+          "subtitle": ""
+        }
+      }
+    },
+    {
+      "id": "d_dpk_atcs",
+      "name": "Depok Dishub",
+      "city": "Depok",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://dishub.depok.go.id/cctv",
+      "sourceUrl": "https://dishub.depok.go.id/cctv",
+      "_note": "As of 2026-04, the upstream /vi/{ip}.m3u8 route is broken — Apache serves the portal HTML fallback for every camera URL. The list below resolves fine; tiles will show OFFLINE until Dishub Depok restores the streaming backend.",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://dishub.depok.go.id/cctv",
+            "extract": {
+              "type": "jsVarJsonArray",
+              "pattern": "var\\s+dataCCTV\\s*=\\s*(\\[.*?\\])\\s*;",
+              "flags": "DOTALL"
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "status_on!": "1"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "nama_cctv^": "SP "
+            },
+            "override": {
+              "group": "Simpang"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "SIMPANG "
+            },
+            "override": {
+              "group": "Simpang"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "JPO"
+            },
+            "override": {
+              "group": "JPO"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "TAMAN "
+            },
+            "override": {
+              "group": "Taman"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "POSPOL"
+            },
+            "override": {
+              "group": "Pos Polisi"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "TEROWONGAN"
+            },
+            "override": {
+              "group": "Terowongan"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "JEMBATAN"
+            },
+            "override": {
+              "group": "Jembatan"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "DERMAGA"
+            },
+            "override": {
+              "group": "Dermaga"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv~": "UI "
+            },
+            "override": {
+              "group": "Kawasan UI"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "LINGKAR UI"
+            },
+            "override": {
+              "group": "Kawasan UI"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "PJU"
+            },
+            "override": {
+              "group": "PJU"
+            }
+          },
+          {
+            "when": {
+              "nama_cctv^": "LAJUR"
+            },
+            "override": {
+              "group": "Lajur"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "dpk_{{ip}}",
+          "url": "https://dishub.depok.go.id/vi/{{ip}}.m3u8",
+          "name": "{{nama_cctv}}",
+          "group": "Lainnya",
+          "subtitle": "",
+          "lat": "{{latitude}}",
+          "lng": "{{longitude}}"
+        }
+      }
+    },
+    {
+      "id": "d_mgl_atcs",
+      "name": "Magelang CCTV",
+      "city": "Magelang",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://cctv.magelangkota.go.id/",
+      "sourceUrl": "https://cctv.magelangkota.go.id/",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://cctv.magelangkota.go.id/",
+            "extract": {
+              "type": "regex",
+              "pattern": "class=\"[^\"]*text-white[^\"]*\">\\s*([^<]+?)\\s*</div>[\\s\\S]*?data-player-key=\"([^\"]+)\"[\\s\\S]*?data-stream-url=\"([^\"]+\\.m3u8)\"",
+              "fields": [
+                "name",
+                "key",
+                "url"
+              ],
+              "flags": "DOTALL"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "mgl_{{key}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Magelang",
+          "subtitle": ""
+        }
+      }
+    },
+    {
+      "id": "d_pbr_atcs",
+      "name": "Pekanbaru CCTV",
+      "city": "Pekanbaru",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://cctv.pekanbaru.go.id/",
+      "sourceUrl": "https://cctv.pekanbaru.go.id/",
+      "extraction": {
+        "stages": [
+          {
+            "url": "https://cctv.pekanbaru.go.id/",
+            "extract": {
+              "type": "regex",
+              "pattern": "data-cam-id=\"(\\d+)\"\\s+data-name=\"([^\"]+)\"\\s+data-manifest=\"([^\"]+\\.m3u8)\"",
+              "fields": [
+                "id",
+                "name",
+                "url"
+              ],
+              "flags": "DOTALL"
+            }
+          }
+        ],
+        "leaf": {
+          "id": "pbr_{{id}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Pekanbaru",
+          "subtitle": ""
+        }
+      }
+    },
+    {
+      "id": "d_oc_banten",
+      "name": "Banten",
+      "city": "Banten",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/banten",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/banten",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/banten"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocbanten_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Banten",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_diy",
+      "name": "DI Yogyakarta",
+      "city": "DI Yogyakarta",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/di-yogyakarta",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/di-yogyakarta",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/di-yogyakarta"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/di-yogyakarta?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/special-region-of-yogyakarta"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocdiy_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "DI Yogyakarta",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_dki",
+      "name": "DKI Jakarta",
+      "city": "DKI Jakarta",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/dki-jakarta",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/dki-jakarta",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/dki-jakarta"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/dki-jakarta?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jakarta-special-capital-region"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocdki_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "DKI Jakarta",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_jabar",
+      "name": "Jawa Barat",
+      "city": "Jawa Barat",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/jawa-barat",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/jawa-barat",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=3"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=4"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=5"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=6"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=7"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=8"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=9"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-barat?page=10"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=3"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=4"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=5"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=6"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=7"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=8"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=9"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/west-java?page=10"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocjabar_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Jawa Barat",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_jateng",
+      "name": "Jawa Tengah",
+      "city": "Jawa Tengah",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/jawa-tengah",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/jawa-tengah",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-tengah"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-tengah?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/central-java"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocjateng_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Jawa Tengah",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_jatim",
+      "name": "Jawa Timur",
+      "city": "Jawa Timur",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/jawa-timur",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/jawa-timur",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-timur"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/jawa-timur?page=2"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/east-java"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/east-java?page=2"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocjatim_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Jawa Timur",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_lampung",
+      "name": "Lampung",
+      "city": "Lampung",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/lampung",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/lampung",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/lampung"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "oclampung_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Lampung",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_riau",
+      "name": "Riau",
+      "city": "Riau",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/riau",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/riau",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/riau"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocriau_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Riau",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_sumsel",
+      "name": "Sumatera Selatan",
+      "city": "Sumatera Selatan",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/sumatera-selatan",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/sumatera-selatan",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/sumatera-selatan"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/south-sumatra"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocsumsel_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Sumatera Selatan",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    },
+    {
+      "id": "d_oc_sumut",
+      "name": "Sumatera Utara",
+      "city": "Sumatera Utara",
+      "type": "COLLECTION",
+      "providerId": "config",
+      "url": "https://opencctv.org/cameras/indonesia/sumatera-utara",
+      "sourceUrl": "https://opencctv.org/cameras/indonesia/sumatera-utara",
+      "extraction": {
+        "fanout": 12,
+        "seed": [
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/sumatera-utara"
+          },
+          {
+            "pageUrl": "https://opencctv.org/cameras/indonesia/north-sumatra"
+          }
+        ],
+        "stages": [
+          {
+            "url": "{{pageUrl}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "<a href=\"(/cameras/indonesia/[^/]+/[^/]+/[^\"]+)\"[^>]*>\\s*<img src=\"[^\"]+\"\\s+alt=\"([^\"]+)\"",
+              "fields": [
+                "detailPath",
+                "name"
+              ],
+              "flags": "DOTALL"
+            }
+          },
+          {
+            "url": "https://opencctv.org{{detailPath}}",
+            "extract": {
+              "type": "regex",
+              "pattern": "href=\"(https?://[^\"]+\\.m3u8[^\"]*)\"",
+              "fields": [
+                "url"
+              ],
+              "flags": "DOTALL",
+              "limit": 1,
+              "augment": {
+                "pattern": "\"latitude\":\\s*(-?[\\d.]+)\\s*,\\s*\"longitude\":\\s*(-?[\\d.]+)",
+                "fields": [
+                  "ocLat",
+                  "ocLng"
+                ],
+                "flags": "DOTALL"
+              }
+            }
+          }
+        ],
+        "rules": [
+          {
+            "when": {
+              "url~": "windy.com"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "images-webcams"
+            },
+            "drop": true
+          },
+          {
+            "when": {
+              "url~": "feed/windy-"
+            },
+            "drop": true
+          }
+        ],
+        "leaf": {
+          "id": "ocsumut_{{name}}",
+          "url": "{{url}}",
+          "name": "{{name}}",
+          "group": "Sumatera Utara",
+          "subtitle": "",
+          "lat": "{{ocLat}}",
+          "lng": "{{ocLng}}"
+        }
+      }
+    }
+  ]
+}

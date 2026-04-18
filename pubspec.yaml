@@ -1,0 +1,56 @@
+name: pantaujalan_flutter
+description: "PantauJalan - Indonesia Public CCTV Monitor (Flutter cross-platform)"
+publish_to: 'none'
+
+# versionName 1.0.0+1 (versionCode 1). Bump for each AAB / IPA release.
+# Android side has a separate codebase at versionCode 3 / 1.0.2; Flutter side
+# starts fresh at 1.0.0 until feature parity lands.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # HTTP client for fetching the encrypted remote config.
+  http: ^1.2.2
+
+  # AES-256-GCM decryption of the feeds blob + SHA-256 key derivation.
+  # `cryptography` is Dart-native (no FFI) so it works out of the box on
+  # Android and iOS without extra build config.
+  cryptography: ^2.7.0
+
+  # Device-local persistent storage (mirrors Android SharedPreferences).
+  shared_preferences: ^2.3.2
+
+  # Internal files dir for the decrypted feeds cache.
+  path_provider: ^2.1.4
+
+  # Video playback. `video_player` handles HLS out of the box on both platforms
+  # (AVPlayer on iOS, ExoPlayer on Android). Covers the vast majority of ATCS
+  # feeds which serve .m3u8.
+  video_player: ^2.9.2
+
+  # WebView fallback for portals that don't expose a direct stream URL and for
+  # MJPEG wrapped in <img>.
+  webview_flutter: ^4.10.0
+
+  # AdMob banner + interstitial, same unit IDs as the Android app.
+  google_mobile_ads: ^5.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Shipped as a safety net — the app always tries the encrypted remote
+    # config first and only falls back to this bundled copy when offline or
+    # when the decrypted cache is empty. Same file as the Android app ships.
+    - assets/default_feeds.json
