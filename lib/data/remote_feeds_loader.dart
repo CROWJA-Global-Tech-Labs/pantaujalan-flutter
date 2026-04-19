@@ -28,8 +28,11 @@ class RemoteFeedsLoader {
   static const String _passphrase =
       'pantaujalan-feeds-v1-crowja-global-tech-labs';
 
+  // Public GitHub Gist. The /raw/default_feeds.enc endpoint (no SHA)
+  // always resolves to the latest revision, so the Flutter client reads
+  // the same live config as the Android client.
   static const String _remoteUrl =
-      'https://raw.githubusercontent.com/CROWJA-Global-Tech-Labs/pantaujalan-docs/main/default_feeds.enc';
+      'https://gist.githubusercontent.com/ardika/c91fde4c1c37a1ee8487edd39069c4f2/raw/default_feeds.enc';
 
   static const String _cacheFile = 'remote_feeds.json';
   static const String _prefKeyLastFetch = 'remote_feeds_last_fetch_ms';
